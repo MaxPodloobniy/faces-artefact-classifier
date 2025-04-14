@@ -1,16 +1,9 @@
-from tensorflow.keras.applications import VGG19
-from tensorflow.keras.models import Model
-from tensorflow.keras.optimizers import Adam, AdamW
-from tensorflow.keras import backend as K
 from sklearn.metrics import classification_report, confusion_matrix
-from sklearn.model_selection import train_test_split
 import matplotlib.pyplot as plt
 import seaborn as sns
-import pandas as pd
 import tensorflow as tf
 import numpy as np
 import os
-import math
 
 IMG_SIZE = (224, 224)
 BATCH_SIZE = 32
