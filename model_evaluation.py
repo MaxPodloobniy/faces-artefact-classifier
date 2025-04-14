@@ -117,3 +117,55 @@ def evaluate_model_on_test(model, test_ds, test_steps, class_names=None):
 
 
 results = evaluate_model_on_test(model, test_ds, test_steps, test_classes)
+
+
+def visualize_model_predictions(model, test_dataset, classes, num_images=9):
+    # Invert class dictionary to get class names by indexes
+    class_names = {v: k for k, v in classes.items()}
+
+    # Get the first batch_size of images and their labels
+    images, labels = next(iter(test_dataset))
+
+    if num_images > len(images):
+        num_images = len(images)
+
+    predictions = model.predict(images[:num_images])
+    predicted_classes = np.argmax(predictions, axis=1)
+
+    # Create a grid to display images
+    rows = int(np.ceil(num_images / 3))
+    cols = min(3, num_images)
+
+    plt.figure(figsize=(12, 4 * rows))
+
+    for i in range(num_images):
+        plt.subplot(rows, cols, i + 1)
+
+        # Display image
+        img = images[i].numpy()
+        plt.imshow(img)
+
+        # Get real and predicted class labels
+        true_label = int(labels[i].numpy())
+        pred_label = predicted_classes[i]
+
+        true_class_name = class_names[true_label]
+        pred_class_name = class_names[pred_label]
+
+        color = 'green' if true_label == pred_label else 'red'
+
+        plt.title(f"Real: {true_class_name}\nPredicted: {pred_class_name}",
+                  color=color)
+
+        plt.axis('off')
+
+    plt.tight_layout()
+    plt.show()
+
+
+visualize_model_predictions(
+    model=model,
+    test_dataset=test_ds,
+    classes=test_classes,
+    num_images=9
+)
