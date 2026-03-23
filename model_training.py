@@ -1,4 +1,5 @@
 import argparse
+import logging
 import math
 import os
 
@@ -15,6 +16,9 @@ from tensorflow.keras.models import Model
 from tensorflow.keras.optimizers import Adam
 
 IMG_SIZE = (224, 224)
+
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
 
 
 def load_dataset_files(directory):
@@ -61,8 +65,8 @@ def augment_image(image, label):
 def create_test_dataset(test_dir, batch_size):
     file_paths, labels, classes = load_dataset_files(test_dir)
 
-    print(f"Classes in test set: {classes}")
-    print(f"Number of test images: {len(file_paths)}")
+    logger.info(f"Classes in test set: {classes}")
+    logger.info(f"Number of test images: {len(file_paths)}")
 
     test_ds = tf.data.Dataset.from_tensor_slices((file_paths, labels))
     test_ds = test_ds.map(process_image, num_parallel_calls=tf.data.AUTOTUNE)
@@ -88,10 +92,10 @@ def create_balanced_train_dataset(train_dir, batch_size, val_split=0.2):
         random_state=42
     )
 
-    print(f"Classes: {classes}")
-    print(f"Total images: {len(file_paths)}")
-    print(f"Training images: {len(train_df)}")
-    print(f"Validation images: {len(val_df)}")
+    logger.info(f"Classes: {classes}")
+    logger.info(f"Total images: {len(file_paths)}")
+    logger.info(f"Training images: {len(train_df)}")
+    logger.info(f"Validation images: {len(val_df)}")
 
     class_counts = train_df['label'].value_counts().to_dict()
     minority_label = min(class_counts, key=class_counts.get)
@@ -106,7 +110,7 @@ def create_balanced_train_dataset(train_dir, batch_size, val_split=0.2):
     balanced_df = pd.concat([majority_df, oversampled_minority_df])
     balanced_df = balanced_df.sample(frac=1.0, random_state=42).reset_index(drop=True)
 
-    print(f"After oversampling: {balanced_df['label'].value_counts().to_dict()}")
+    logger.info(f"After oversampling: {balanced_df['label'].value_counts().to_dict()}")
 
     train_ds = tf.data.Dataset.from_tensor_slices((balanced_df['file_path'].values, balanced_df['label'].values))
     train_ds = train_ds.map(process_image, num_parallel_calls=tf.data.AUTOTUNE)
@@ -208,8 +212,8 @@ def evaluate_model(model, test_ds, test_steps, class_names=None):
     y_true = np.array(y_true)
     y_pred = np.array(y_pred)
 
-    print("\nClassification Report:")
-    print(classification_report(y_true, y_pred, target_names=class_names))
+    logger.info("Classification Report:")
+    logger.info("\n" + classification_report(y_true, y_pred, target_names=class_names))
 
     cm = confusion_matrix(y_true, y_pred)
     plt.figure(figsize=(8, 6))
@@ -243,12 +247,15 @@ def parse_args():
 if __name__ == '__main__':
     args = parse_args()
 
+    logger.info(f"Starting training with batch_size={args.batch_size}, epochs={args.epochs}, lr={args.learning_rate}")
+
     test_ds, test_steps, test_classes = create_test_dataset(args.test_dir, args.batch_size)
 
     balanced_train_ds, balanced_steps, val_ds, val_steps, _ = create_balanced_train_dataset(
         args.train_dir, args.batch_size, args.val_split
     )
 
+    logger.info("Building VGG-19 model...")
     model = build_model(learning_rate=args.learning_rate)
 
     callbacks = [
@@ -274,5 +281,8 @@ if __name__ == '__main__':
         callbacks=callbacks
     )
 
+    logger.info(f"Loading best model from {args.output_model}")
     model = tf.keras.models.load_model(args.output_model, compile=False)
+
+    logger.info("Evaluating on test set...")
     evaluate_model(model, test_ds, test_steps, test_classes)
