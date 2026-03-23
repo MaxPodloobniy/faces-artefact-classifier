@@ -3,7 +3,7 @@ import shutil
 
 
 def organize_images_into_subfolders(base_path):
-    for split in ['train', 'test']:
+    for split in ['train', 'test_data']:
         split_path = os.path.join(base_path, split)
         if not os.path.isdir(split_path):
             print(f"Directory '{split_path}' not found. Skipping...")
@@ -14,7 +14,7 @@ def organize_images_into_subfolders(base_path):
 
         for fname in files:
             try:
-                label = fname.split('_')[-1].split('.')[0]  # "image_00002_1.png" → "1"
+                label = fname.split('_')[-1].split('.')[0]  # "image_00002_1.png" -> "1"
                 label_dir = os.path.join(split_path, label)
                 os.makedirs(label_dir, exist_ok=True)
 
@@ -25,10 +25,8 @@ def organize_images_into_subfolders(base_path):
             except Exception as e:
                 print(f"Error processing file '{fname}': {e}")
 
-    print("✅ Done organizing files into class subfolders.")
+    print("Done organizing files into class subfolders.")
 
 
-# Використання:
+# Usage:
 organize_images_into_subfolders('/Users/maxim/Downloads/trainee_dataset')
-# Наприклад:
-# organize_images_into_subfolders('/Users/maxim/PycharmProjects/Faces_Artifact_Classifier/data')
