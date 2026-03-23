@@ -3,12 +3,8 @@ import logging
 import math
 import os
 
-import matplotlib.pyplot as plt
-import numpy as np
 import pandas as pd
-import seaborn as sns
 import tensorflow as tf
-from sklearn.metrics import classification_report, confusion_matrix
 from sklearn.model_selection import train_test_split
 from tensorflow.keras import backend as K
 from tensorflow.keras.applications import VGG19
@@ -60,22 +56,6 @@ def augment_image(image, label):
     image = tf.image.random_hue(image, max_delta=0.05)
     image = tf.clip_by_value(image, 0.0, 1.0)
     return image, label
-
-
-def create_test_dataset(test_dir, batch_size):
-    file_paths, labels, classes = load_dataset_files(test_dir)
-
-    logger.info(f"Classes in test set: {classes}")
-    logger.info(f"Number of test images: {len(file_paths)}")
-
-    test_ds = tf.data.Dataset.from_tensor_slices((file_paths, labels))
-    test_ds = test_ds.map(process_image, num_parallel_calls=tf.data.AUTOTUNE)
-    test_ds = test_ds.batch(batch_size, drop_remainder=True)
-    test_ds = test_ds.prefetch(buffer_size=tf.data.AUTOTUNE)
-
-    test_steps = len(file_paths) // batch_size + (1 if len(file_paths) % batch_size != 0 else 0)
-
-    return test_ds, test_steps, classes
 
 
 def create_balanced_train_dataset(train_dir, batch_size, val_split=0.2):
@@ -194,48 +174,9 @@ def build_model(learning_rate=1e-5, decay_steps=400, decay_rate=0.85):
     return model
 
 
-def evaluate_model(model, test_ds, test_steps, class_names=None):
-    y_true = []
-    y_pred = []
-
-    for images, labels in test_ds.take(test_steps):
-        preds = model.predict(images, verbose=0)
-
-        if preds.shape[-1] > 1:
-            pred_classes = np.argmax(preds, axis=1)
-        else:
-            pred_classes = (preds > 0.5).astype(int).flatten()
-
-        y_pred.extend(pred_classes)
-        y_true.extend(labels.numpy().astype(int))
-
-    y_true = np.array(y_true)
-    y_pred = np.array(y_pred)
-
-    logger.info("Classification Report:")
-    logger.info("\n" + classification_report(y_true, y_pred, target_names=class_names))
-
-    cm = confusion_matrix(y_true, y_pred)
-    plt.figure(figsize=(8, 6))
-    sns.heatmap(cm, annot=True, fmt='d', cmap='Blues',
-                xticklabels=class_names, yticklabels=class_names)
-    plt.xlabel("Predicted")
-    plt.ylabel("True")
-    plt.title("Confusion Matrix")
-    plt.show()
-
-    return {
-        'y_true': y_true,
-        'y_pred': y_pred,
-        'confusion_matrix': cm,
-        'report': classification_report(y_true, y_pred, target_names=class_names, output_dict=True)
-    }
-
-
 def parse_args():
     parser = argparse.ArgumentParser(description="Train VGG-19 artifact classifier")
     parser.add_argument('--train-dir', type=str, required=True, help="Path to training data directory")
-    parser.add_argument('--test-dir', type=str, required=True, help="Path to test data directory")
     parser.add_argument('--batch-size', type=int, default=32)
     parser.add_argument('--epochs', type=int, default=20)
     parser.add_argument('--learning-rate', type=float, default=1e-5)
@@ -248,8 +189,6 @@ if __name__ == '__main__':
     args = parse_args()
 
     logger.info(f"Starting training with batch_size={args.batch_size}, epochs={args.epochs}, lr={args.learning_rate}")
-
-    test_ds, test_steps, test_classes = create_test_dataset(args.test_dir, args.batch_size)
 
     balanced_train_ds, balanced_steps, val_ds, val_steps, _ = create_balanced_train_dataset(
         args.train_dir, args.batch_size, args.val_split
@@ -281,8 +220,4 @@ if __name__ == '__main__':
         callbacks=callbacks
     )
 
-    logger.info(f"Loading best model from {args.output_model}")
-    model = tf.keras.models.load_model(args.output_model, compile=False)
-
-    logger.info("Evaluating on test set...")
-    evaluate_model(model, test_ds, test_steps, test_classes)
+    logger.info(f"Training complete. Best model saved to {args.output_model}")
